@@ -11,223 +11,11 @@ app = Flask(__name__)
 app.secret_key = 'replace_with_a_random_secret_key'  # change in production
 
 # API configuration - point to your create_database.py server
-API_BASE_URL = 'https://mengtopup.shop'  # Change this if your server runs on different port
+API_BASE_URL = 'http://localhost:5003'  # Change this if your server runs on different port
 
-# Admin credentials
-ADMIN_PASSWORD = "1516Coolb"
+# Remove all local database functions and replace with API calls
 
-# Admin panel routes - Updated to connect to API server
-@app.route('/admin')
-def admin_panel():
-    """Admin panel - requires password"""
-    password = request.args.get('pass')
-    
-    if password != ADMIN_PASSWORD:
-        return "Unauthorized - Invalid admin password", 401
-    
-    # Store admin session
-    session['admin'] = True
-    session['admin_pass'] = password
-    
-    try:
-        # Get all users from API server
-        users = get_all_users_via_api()
-        return render_template('admin.html', users=users, password=password)
-    except Exception as e:
-        return f"Error loading admin panel: {str(e)}", 500
-
-@app.route('/admin/users')
-def admin_get_users():
-    """API endpoint to get all users (JSON)"""
-    if not session.get('admin'):
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    try:
-        users = get_all_users_via_api()
-        return jsonify({"success": True, "users": users})
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-@app.route('/admin/users/<int:user_id>/balance', methods=['POST'])
-def admin_update_balance(user_id):
-    """API endpoint to update user balance"""
-    if not session.get('admin'):
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    try:
-        data = request.get_json()
-        new_balance = data.get('balance')
-        
-        if new_balance is None:
-            return jsonify({"success": False, "error": "Balance value required"}), 400
-        
-        # Update balance via API server
-        success = update_balance_via_api(user_id, new_balance)
-        
-        if success:
-            return jsonify({"success": True, "message": f"Balance updated to ${new_balance:.2f}"})
-        else:
-            return jsonify({"success": False, "error": "Failed to update balance"}), 500
-            
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-# Helper functions for admin panel - Updated to use API server
-def get_all_users_via_api():
-    """Get all users from the API server"""
-    try:
-        # Try to get users from the API server first
-        response = requests.get(f'{API_BASE_URL}/api/admin/users', timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                return data.get('users', [])
-    except:
-        pass  # Fall back to direct database access
-    
-    # Fallback: direct database access (for development)
-    try:
-        import sqlite3
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        
-        # Get all users with their balance and order count
-        users = cursor.execute('''
-            SELECT u.id, u.username, u.password_hash, u.balance, u.created_at,
-                   COUNT(o.id) as order_count,
-                   MAX(o.created_at) as last_order_date
-            FROM users u
-            LEFT JOIN orders o ON u.id = o.user_id
-            GROUP BY u.id
-            ORDER BY u.created_at DESC
-        ''').fetchall()
-        
-        user_list = []
-        for user in users:
-            user_list.append({
-                'id': user[0],
-                'username': user[1],
-                'password_hash': user[2],
-                'balance': user[3],
-                'created_at': user[4],
-                'order_count': user[5],
-                'last_order_date': user[6]
-            })
-        
-        conn.close()
-        return user_list
-        
-    except Exception as e:
-        print(f"Error getting users: {e}")
-        return []
-
-def update_balance_via_api(user_id, new_balance):
-    """Update user balance via API server"""
-    try:
-        response = requests.post(
-            f'{API_BASE_URL}/api/users/{user_id}/update_balance',
-            json={'balance': new_balance},
-            timeout=10
-        )
-        return response.status_code == 200 and response.json().get('success')
-    except Exception as e:
-        print(f"API update failed: {e}")
-        # Fallback: direct database update
-        try:
-            import sqlite3
-            conn = sqlite3.connect('users.db')
-            cursor = conn.cursor()
-            cursor.execute(
-                'UPDATE users SET balance = ? WHERE id = ?',
-                (new_balance, user_id)
-            )
-            conn.commit()
-            conn.close()
-            return True
-        except Exception as e2:
-            print(f"Direct update failed: {e2}")
-            return False
-
-@app.route('/admin/users/<int:user_id>/delete', methods=['POST'])
-def admin_delete_user(user_id):
-    """API endpoint to delete user"""
-    if not session.get('admin'):
-        return jsonify({"success": False, "error": "Unauthorized"}), 401
-    
-    try:
-        # Note: You'll need to add a delete endpoint to create_database.py
-        # For now, we'll just return a message
-        return jsonify({"success": False, "error": "Delete functionality not implemented yet"}), 501
-            
-    except Exception as e:
-        return jsonify({"success": False, "error": str(e)}), 500
-
-# Updated helper functions for admin panel
-def get_all_users_via_api():
-    """Get all users from the API server"""
-    try:
-        response = requests.get(f'{API_BASE_URL}/api/admin/users', timeout=10)
-        if response.status_code == 200:
-            data = response.json()
-            if data.get('success'):
-                return data.get('users', [])
-        # If API fails, fall through to direct access
-    except Exception as e:
-        print(f"API get users failed: {e}")
-    
-    # Fallback: direct database access
-    try:
-        import sqlite3
-        conn = sqlite3.connect('users.db')
-        cursor = conn.cursor()
-        
-        users = cursor.execute('''
-            SELECT u.id, u.username, u.password_hash, u.balance, u.created_at,
-                   COUNT(o.id) as order_count,
-                   MAX(o.created_at) as last_order_date
-            FROM users u
-            LEFT JOIN orders o ON u.id = o.user_id
-            GROUP BY u.id
-            ORDER BY u.created_at DESC
-        ''').fetchall()
-        
-        user_list = []
-        for user in users:
-            user_list.append({
-                'id': user[0],
-                'username': user[1],
-                'password_hash': user[2],
-                'balance': user[3],
-                'created_at': user[4],
-                'order_count': user[5],
-                'last_order_date': user[6]
-            })
-        
-        conn.close()
-        return user_list
-        
-    except Exception as e:
-        print(f"Direct get users failed: {e}")
-        return []
-
-def update_balance_via_api(user_id, new_balance):
-    """Update user balance via API server"""
-    try:
-        response = requests.post(
-            f'{API_BASE_URL}/api/users/{user_id}/update_balance',
-            json={'balance': new_balance},
-            timeout=10
-        )
-        if response.status_code == 200:
-            data = response.json()
-            return data.get('success', False)
-        return False
-    except Exception as e:
-        print(f"API update balance failed: {e}")
-        return False
-    
-# Existing routes (keep all your existing routes below)
-# Authentication routes
+# Authentication routes - Updated to handle both JSON and form data
 @app.route('/register', methods=['GET', 'POST'])
 def register():
     if request.method == 'GET':
@@ -340,8 +128,6 @@ def login():
 def logout():
     session.pop('user', None)
     session.pop('user_id', None)
-    session.pop('admin', None)
-    session.pop('admin_pass', None)
     return redirect(url_for('index'))
 
 @app.route('/')
@@ -584,14 +370,18 @@ def check_payment():
             # Update transaction status via API
             try:
                 update_response = requests.post(
-                    f'{API_BASE_URL}/api/users/{session["user_id"]}/transactions/{md5_hash}/paid',
+                    f'{API_BASE_URL}/api/users/{md5_hash}/paid',
                     timeout=10
                 )
-                if update_response.json().get('success'):
+                update_data = update_response.json()
+                if update_data.get('success'):
                     print(f"Payment credited via API for hash: {md5_hash}")
+                else:
+                    print(f"Failed to credit payment: {update_data.get('error')}")
             except Exception as e:
-                print(f"Warning: Failed to update transaction status via API: {e}")
+                    print(f"Warning: Failed to update transaction status via API: {e}")
         
+
         return jsonify({
             'status': status,
             'message': data.get('message', ''),
@@ -625,7 +415,7 @@ def create_api_order():
             return jsonify({'error': 'Failed to check balance'}), 500
             
         user_balance = balance_data.get('balance', 0.0)
-        service_cost = 0.08
+        service_cost = 0.045
         
         if user_balance < service_cost:
             return jsonify({'error': f'Insufficient balance. You need ${service_cost:.3f} but have ${user_balance:.2f}'}), 400
@@ -657,7 +447,7 @@ def create_api_order():
                     'success': True,
                     'mail': api_data['mail'],
                     'order_id': api_data['order_id'],
-                    'cost': '0.08'
+                    'cost': '0.045'
                 })
             else:
                 return jsonify({'error': 'Failed to save order to database'}), 500
@@ -690,7 +480,7 @@ def check_api_otp():
         
         if 'otp' in api_data and api_data['otp']:
             # OTP received - process via API
-            amount = float(api_data.get('amount', 0.08))
+            amount = float(api_data.get('amount', 0.045))
             
             # Update order with OTP via API
             update_response = requests.post(
@@ -803,5 +593,4 @@ except Exception as e:
     khqr = KHQRStub("stub-token")
 
 if __name__ == '__main__':
-
     app.run(debug=True, host='0.0.0.0', port=5000)
