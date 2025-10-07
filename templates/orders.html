@@ -1,0 +1,743 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Order Management</h1>
+
+  <div class="order-layout">
+    <!-- Top Frame: Request New Order -->
+    <div class="request-section">
+      <h2>Request New Order</h2>
+      <div class="balance-info">
+        <p>Your Balance: <strong>${{ "%.2f"|format(balance|default(0)) }}</strong></p>
+        <p class="service-rates">
+          <strong>Service Rates:</strong><br>
+          • Facebook: $0.08 (15 minutes)<br>
+          • Gmail: $0.08 (15 minutes)<br>
+          • Second OTPs: FREE
+        </p>
+        <p class="minimum-balance">Minimum balance required: <strong>$0.08</strong></p>
+      </div>
+
+      <form id="order-form" class="order-form">
+        <div class="form-group">
+          <label for="service">Service:</label>
+          <select id="service" name="service" required>
+            <!-- <option value="">Select Service</option> -->
+            <option value="facebook">Facebook - $0.08</option>
+            <!-- <option value="gmail">Gmail - $0.08</option>
+            <option value="outlooktrust">Outlook Trust - $0.08</option>
+            <option value="hotmailtrust">Hotmail Trust - $0.08</option> -->
+          </select>
+        </div>
+        
+        <button type="submit" class="btn btn-primary" 
+                {% if balance|default(0) < 0.08 %}disabled title="Insufficient balance. Minimum $0.08 required"{% endif %}>
+          Request Order
+        </button>
+        
+        {% if balance|default(0) < 0.08 %}
+        <div class="alert alert-warning">
+          <strong>Insufficient Balance!</strong> You need at least $0.08 to create an order. 
+          <a href="{{ url_for('balance_page') }}" class="alert-link">Top up your balance</a>.
+        </div>
+        {% endif %}
+      </form>
+
+      <div id="order-result" style="display: none;" class="order-result">
+        <h3>Order Created Successfully!</h3>
+        <div class="order-details">
+          <p><strong>Email:</strong> <span id="result-mail"></span></p>
+          <p><strong>Order ID:</strong> <span id="result-order-id"></span></p>
+          <p><strong>Service:</strong> <span id="result-service"></span></p>
+          <p><strong>Cost:</strong> $<span id="result-cost">0.08</span></p>
+          <p><strong>Status:</strong> <span class="status-running">Running - Waiting for OTP</span></p>
+        </div>
+        <button id="check-otp-btn" class="btn btn-secondary">Check OTP</button>
+        <div id="otp-result" style="display: none; margin-top: 15px; padding: 10px; background: #d4edda; border-radius: 4px;">
+          <strong>OTP Received:</strong> <span id="otp-code"></span>
+          <button id="mark-completed-btn" class="btn btn-success btn-sm" style="margin-left: 10px;">Mark as Completed</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Bottom Frame: Order History -->
+    <div class="history-section">
+      <h2>Order History</h2>
+      <div class="orders-table-container">
+        {% if orders %}
+          <table class="orders-table">
+            <thead>
+              <tr>
+                <th>Status</th>
+                <th>Mail</th>
+                <th>Service</th>
+                <th>Amount (USD)</th>
+                <th>OTP</th>
+                <th>Created At</th>
+                <th>Action</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for order in orders %}
+                <tr>
+                  <td>
+                    <span class="status-{{ order.status }}">
+                      {% if order.otp and order.status == 'running' %}
+                        OTP Ready
+                      {% else %}
+                        {{ order.status }}
+                      {% endif %}
+                    </span>
+                  </td>
+                  <td class="email-cell">{{ order.mail or 'N/A' }}</td>
+                  <td>{{ order.service or 'N/A' }}</td>
+                  <td class="amount-cell">
+                    {% if order.amount %}
+                      ${{ "%.3f"|format(order.amount) }}
+                    {% else %}
+                      $0.000
+                    {% endif %}
+                    / {{ order.otp_count or 0 }} OTP
+                  </td>
+                  <td class="otp-cell">
+                    {% if order.otp %}
+                      <code class="otp-code">{{ order.otp }}</code>
+                    {% else %}
+                      <span class="no-otp">-</span>
+                    {% endif %}
+                  </td>
+                  <td>{{ order.formatted_date }}</td>
+                  <td>
+                    {% if order.status == 'running' or (order.otp and order.status == 'running') %}
+                      <button class="btn-check-otp" 
+                              data-order-id="{{ order.order_id }}" 
+                              data-service="{{ order.service }}"
+                              {% if order.otp %}data-has-otp="true"{% endif %}>
+                        {% if order.otp %}
+                          Get OTP
+                        {% else %}
+                          Check
+                        {% endif %}
+                      </button>
+                    {% elif order.status == 'completed' %}
+                      <span class="completed">Completed</span>
+                    {% else %}
+                      <span class="status-{{ order.status }}">{{ order.status }}</span>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% else %}
+          <p class="no-orders">No orders yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentOrderId = null;
+let currentService = null;
+let otpCheckInterval = null;
+
+// Check if user has sufficient balance
+function hasSufficientBalance() {
+    const balanceText = document.querySelector('.balance-info strong').textContent;
+    const balance = parseFloat(balanceText.replace('$', ''));
+    return balance >= 0.08;
+}
+
+// Request new order
+document.getElementById('order-form').addEventListener('submit', async function(e) {
+  e.preventDefault();
+  
+  const service = document.getElementById('service').value;
+  const submitBtn = this.querySelector('button[type="submit"]');
+  
+  if (!service) {
+    alert('Please select a service');
+    return;
+  }
+
+  // Check balance client-side first
+  if (!hasSufficientBalance()) {
+    alert('Insufficient balance! You need at least $0.08 to create an order.');
+    return;
+  }
+
+  submitBtn.disabled = true;
+  submitBtn.textContent = 'Requesting...';
+
+  try {
+    console.log('Sending request to create API order for service:', service);
+    
+    // Call our Flask backend to create order
+    const data = await apiFetch('/create_api_order', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ service: service })
+    });
+    
+    console.log('Response from API:', data);
+    
+    if (data.success) {
+      // Show success result
+      document.getElementById('result-mail').textContent = data.mail;
+      document.getElementById('result-order-id').textContent = data.order_id;
+      document.getElementById('result-service').textContent = service;
+      document.getElementById('result-cost').textContent = data.cost || '0.08';
+      document.getElementById('order-result').style.display = 'block';
+      document.getElementById('otp-result').style.display = 'none';
+      
+      currentOrderId = data.order_id;
+      currentService = service;
+      
+      // Start checking for OTP automatically
+      startOtpChecking(data.order_id, service);
+      
+      // Reload to show new order in history
+      setTimeout(() => location.reload(), 1000);
+      
+    } else {
+      alert('Failed to create order: ' + (data.error || 'Unknown error'));
+    }
+  } catch (error) {
+    console.error('Error creating order:', error);
+    // Error handled by global handler
+  } finally {
+    submitBtn.disabled = false;
+    submitBtn.textContent = 'Request Order';
+  }
+});
+
+// Manual OTP check from result section
+document.getElementById('check-otp-btn').addEventListener('click', function() {
+  if (currentOrderId) {
+    // Check balance before checking OTP
+    if (!hasSufficientBalance()) {
+      alert('Insufficient balance! You need at least $0.08 to check for OTP.');
+      return;
+    }
+
+    const btn = this;
+    btn.disabled = true;
+    btn.textContent = 'Checking...';
+    
+    checkOtp(currentOrderId, currentService, true).finally(() => {
+      setTimeout(() => {
+        btn.disabled = false;
+        btn.textContent = 'Check OTP';
+      }, 2000);
+    });
+  }
+});
+
+// Mark order as completed
+document.addEventListener('click', function(e) {
+  if (e.target.id === 'mark-completed-btn') {
+    if (currentOrderId) {
+      markOrderAsCompleted(currentOrderId);
+    }
+  }
+});
+
+// Check OTP for existing orders in history table
+document.addEventListener('click', function(e) {
+  if (e.target.classList.contains('btn-check-otp')) {
+    // Check balance before checking OTP
+    if (!hasSufficientBalance()) {
+      alert('Insufficient balance! You need at least $0.08 to check for OTP.');
+      return;
+    }
+
+    const orderId = e.target.getAttribute('data-order-id');
+    const service = e.target.getAttribute('data-service');
+    const hasOtp = e.target.getAttribute('data-has-otp') === 'true';
+    
+    if (hasOtp) {
+      // If OTP already exists, just show it
+      const row = e.target.closest('tr');
+      const otpCell = row.querySelector('.otp-code');
+      if (otpCell) {
+        alert(`OTP: ${otpCell.textContent}`);
+        // Optionally mark as completed after showing OTP
+        markOrderAsCompleted(orderId);
+      }
+    } else {
+      // Check for new OTP
+      e.target.disabled = true;
+      e.target.textContent = 'Checking...';
+      
+      checkOtp(orderId, service, false).finally(() => {
+        setTimeout(() => {
+          e.target.disabled = false;
+          e.target.textContent = 'Check';
+          location.reload(); // Reload to update the button text if OTP was received
+        }, 2000);
+      });
+    }
+  }
+});
+
+function startOtpChecking(orderId, service) {
+  // Check every 10 seconds for 15 minutes (900 seconds)
+  let checkCount = 0;
+  const maxChecks = 90; // 15 minutes * 6 checks per minute
+  
+  // Clear any existing interval
+  if (otpCheckInterval) {
+    clearInterval(otpCheckInterval);
+  }
+  
+  console.log('Starting OTP checking for order:', orderId);
+  
+  otpCheckInterval = setInterval(async () => {
+    if (checkCount >= maxChecks) {
+      clearInterval(otpCheckInterval);
+      console.log('OTP checking timeout for order:', orderId);
+      // If no OTP after 15 minutes, mark as failed
+      updateOrderStatus(orderId, 'timeout');
+      alert('Order timed out after 15 minutes. No OTP received.');
+      return;
+    }
+    
+    console.log(`Checking OTP (attempt ${checkCount + 1}/${maxChecks}) for order:`, orderId);
+    const hasOtp = await checkOtp(orderId, service, true);
+    if (hasOtp) {
+      clearInterval(otpCheckInterval);
+      console.log('OTP received, stopping checks for order:', orderId);
+    }
+    
+    checkCount++;
+  }, 10000); // Check every 10 seconds
+}
+
+async function checkOtp(orderId, service = null, showInResult = false) {
+  try {
+    console.log('Checking OTP via API for order:', orderId);
+    
+    // Call our Flask backend to check OTP
+    const data = await apiFetch('/check_api_otp', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({ 
+        order_id: orderId,
+        service: service
+      })
+    });
+    
+    console.log('OTP check response:', data);
+    
+    if (data.success && data.otp) {
+      // OTP received successfully
+      console.log('OTP received:', data.otp);
+      
+      if (showInResult) {
+        document.getElementById('otp-code').textContent = data.otp;
+        document.getElementById('otp-result').style.display = 'block';
+        document.getElementById('check-otp-btn').style.display = 'none';
+      }
+      
+      // Show success message but DON'T mark as completed automatically
+      alert(`OTP received: ${data.otp}\nAmount charged: $${data.amount}\n\nClick "Get OTP" in Order History to view the code again.`);
+      
+      // Reload page to show updated OTP in history table
+      setTimeout(() => location.reload(), 1500);
+      return true;
+    } else if (data.error) {
+      console.log('OTP check result:', data.error);
+      if (showInResult) {
+        if (data.error !== 'No OTP received yet') {
+          alert(data.error);
+        } else {
+          console.log('No OTP yet, still waiting...');
+        }
+      }
+    }
+  } catch (error) {
+    console.error('Error checking OTP:', error);
+    // Error handled by global handler
+  }
+  
+  return false;
+}
+
+function markOrderAsCompleted(orderId) {
+  console.log('Marking order as completed:', orderId);
+  
+  apiFetch('/complete_order', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      order_id: orderId
+    })
+  }).then(data => {
+    if (data.success) {
+      alert('Order marked as completed!');
+      location.reload();
+    } else {
+      alert('Error marking order as completed: ' + data.error);
+    }
+  }).catch(error => {
+    console.error('Error marking order as completed:', error);
+  });
+}
+
+function updateOrderStatus(orderId, status) {
+  console.log('Updating order status:', orderId, status);
+  
+  apiFetch('/update_order_status', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+    },
+    body: JSON.stringify({
+      order_id: orderId,
+      status: status
+    })
+  }).then(data => {
+    if (data.success) {
+      console.log('Order status updated successfully');
+      location.reload(); // Reload to show updated status
+    }
+  }).catch(error => {
+    console.error('Error updating order status:', error);
+  });
+}
+
+// Add loading states and better UX
+document.addEventListener('DOMContentLoaded', function() {
+  console.log('Orders page loaded successfully');
+});
+
+// Auto-refresh balance every 30 seconds
+setInterval(() => {
+  console.log('Auto-refreshing balance...');
+  location.reload();
+}, 30000);
+</script>
+
+<!-- Keep the existing CSS styles, they remain the same -->
+<style>
+.order-layout {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 30px;
+}
+
+.request-section, .history-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.balance-info {
+  background: white;
+  padding: 15px;
+  border-radius: 6px;
+  margin-bottom: 20px;
+  border-left: 4px solid #007bff;
+}
+
+.service-rates {
+  font-size: 14px;
+  color: #666;
+  margin: 10px 0;
+  line-height: 1.4;
+  background: #f8f9fa;
+  padding: 10px;
+  border-radius: 4px;
+}
+
+.minimum-balance {
+  font-size: 14px;
+  color: #dc3545;
+  font-weight: 500;
+  margin: 10px 0;
+}
+
+.api-token {
+  background: #f1f3f4;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-size: 12px;
+  word-break: break-all;
+}
+
+.alert {
+  padding: 12px;
+  border-radius: 4px;
+  margin-top: 10px;
+}
+
+.alert-warning {
+  background: #fff3cd;
+  border: 1px solid #ffeaa7;
+  color: #856404;
+}
+
+.alert-link {
+  color: #856404;
+  text-decoration: underline;
+  font-weight: 500;
+}
+
+.order-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+.form-group {
+  display: flex;
+  flex-direction: column;
+}
+
+.form-group label {
+  font-weight: 500;
+  margin-bottom: 5px;
+}
+
+.form-group select {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  background: white;
+}
+
+.btn {
+  padding: 10px 20px;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  transition: background-color 0.2s;
+  font-weight: 500;
+}
+
+.btn-primary {
+  background: #007bff;
+  color: white;
+}
+
+.btn-primary:hover {
+  background: #0056b3;
+}
+
+.btn-primary:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.btn-secondary {
+  background: #28a745;
+  color: white;
+}
+
+.btn-secondary:hover {
+  background: #218838;
+}
+
+.btn-secondary:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.order-result {
+  background: white;
+  padding: 20px;
+  border-radius: 6px;
+  margin-top: 20px;
+  border-left: 4px solid #28a745;
+  box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+}
+
+.order-details p {
+  margin: 8px 0;
+  padding: 5px 0;
+  border-bottom: 1px solid #f8f9fa;
+}
+
+.order-details p:last-child {
+  border-bottom: none;
+}
+
+.orders-table-container {
+  max-height: 600px;
+  overflow-y: auto;
+  border: 1px solid #e9ecef;
+  border-radius: 6px;
+}
+
+.orders-table {
+  width: 100%;
+  border-collapse: collapse;
+  background: white;
+}
+
+.orders-table th,
+.orders-table td {
+  padding: 12px;
+  text-align: left;
+  border-bottom: 1px solid #e9ecef;
+}
+
+.orders-table th {
+  background: #007bff;
+  color: white;
+  font-weight: 600;
+  position: sticky;
+  top: 0;
+}
+
+.orders-table tr:hover {
+  background: #f8f9fa;
+}
+
+.status-running {
+  color: #ffc107;
+  font-weight: 500;
+  background: #fff3cd;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.status-completed {
+  color: #28a745;
+  font-weight: 500;
+  background: #d4edda;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.status-failed, .status-timeout {
+  color: #dc3545;
+  font-weight: 500;
+  background: #f8d7da;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.email-cell {
+  font-family: monospace;
+  font-size: 12px;
+  color: #495057;
+}
+
+.amount-cell {
+  font-weight: 600;
+  color: #28a745;
+}
+
+.otp-cell {
+  text-align: center;
+}
+
+.otp-code {
+  background: #d4edda;
+  color: #155724;
+  padding: 4px 8px;
+  border-radius: 4px;
+  font-family: monospace;
+  font-weight: bold;
+  font-size: 14px;
+}
+
+.no-otp {
+  color: #6c757d;
+  font-style: italic;
+}
+
+.btn-check-otp {
+  background: #17a2b8;
+  color: white;
+  border: none;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 500;
+}
+
+.btn-check-otp:hover {
+  background: #138496;
+}
+
+.btn-check-otp:disabled {
+  background: #6c757d;
+  cursor: not-allowed;
+}
+
+.completed {
+  color: #28a745;
+  font-style: italic;
+  font-size: 12px;
+}
+
+.no-orders {
+  text-align: center;
+  color: #6c757d;
+  font-style: italic;
+  padding: 40px 0;
+}
+
+@media (max-width: 768px) {
+  .order-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+  
+  .orders-table {
+    font-size: 12px;
+  }
+  
+  .orders-table th,
+  .orders-table td {
+    padding: 8px 4px;
+  }
+  
+  .email-cell {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+}
+.status-otp-ready {
+  color: #17a2b8;
+  font-weight: 500;
+  background: #d1ecf1;
+  padding: 4px 8px;
+  border-radius: 12px;
+  font-size: 12px;
+}
+
+.btn-success {
+  background: #28a745;
+  color: white;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+}
+
+.btn-success:hover {
+  background: #218838;
+}
+</style>
+{% endblock %}

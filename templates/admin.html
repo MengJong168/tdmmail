@@ -1,0 +1,533 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width,initial-scale=1" />
+    <title>Admin Panel - TDM Mail Shop</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+            background: #f5f5f5;
+            color: #333;
+            line-height: 1.6;
+        }
+        
+        .admin-header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px 0;
+            text-align: center;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        
+        .admin-header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        
+        .admin-header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+        
+        .admin-container {
+            max-width: 1200px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        
+        .stats-cards {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+        
+        .stat-card {
+            background: white;
+            padding: 25px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            text-align: center;
+        }
+        
+        .stat-card h3 {
+            color: #666;
+            font-size: 0.9rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 10px;
+        }
+        
+        .stat-number {
+            font-size: 2.5rem;
+            font-weight: bold;
+            color: #667eea;
+        }
+        
+        .users-table-container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+        
+        .table-header {
+            background: #f8f9fa;
+            padding: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .table-header h2 {
+            color: #333;
+            margin: 0;
+        }
+        
+        .users-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        
+        .users-table th,
+        .users-table td {
+            padding: 15px;
+            text-align: left;
+            border-bottom: 1px solid #dee2e6;
+        }
+        
+        .users-table th {
+            background: #f8f9fa;
+            font-weight: 600;
+            color: #495057;
+        }
+        
+        .users-table tr:hover {
+            background: #f8f9fa;
+        }
+        
+        .user-id {
+            color: #666;
+            font-family: monospace;
+            font-size: 0.9rem;
+        }
+        
+        .user-email {
+            font-weight: 500;
+        }
+        
+        .balance-cell {
+            font-weight: 600;
+        }
+        
+        .balance-positive {
+            color: #28a745;
+        }
+        
+        .balance-zero {
+            color: #6c757d;
+        }
+        
+        .action-buttons {
+            display: flex;
+            gap: 8px;
+        }
+        
+        .btn {
+            padding: 8px 16px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.85rem;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .btn-edit {
+            background: #007bff;
+            color: white;
+        }
+        
+        .btn-edit:hover {
+            background: #0056b3;
+        }
+        
+        .btn-delete {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-delete:hover {
+            background: #c82333;
+        }
+        
+        .btn-save {
+            background: #28a745;
+            color: white;
+        }
+        
+        .btn-save:hover {
+            background: #218838;
+        }
+        
+        .btn-cancel {
+            background: #6c757d;
+            color: white;
+        }
+        
+        .btn-cancel:hover {
+            background: #5a6268;
+        }
+        
+        .balance-input {
+            width: 100px;
+            padding: 5px 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 0.9rem;
+        }
+        
+        .edit-mode .view-mode {
+            display: none;
+        }
+        
+        .edit-mode .edit-mode {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        
+        .edit-mode {
+            display: none;
+        }
+        
+        .last-active {
+            font-size: 0.85rem;
+            color: #666;
+        }
+        
+        .no-users {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+            font-style: italic;
+        }
+        
+        .loading {
+            text-align: center;
+            padding: 40px;
+            color: #666;
+        }
+        
+        .success-message {
+            background: #d4edda;
+            color: #155724;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #c3e6cb;
+        }
+        
+        .error-message {
+            background: #f8d7da;
+            color: #721c24;
+            padding: 12px;
+            border-radius: 5px;
+            margin-bottom: 20px;
+            border: 1px solid #f5c6cb;
+        }
+        
+        .refresh-btn {
+            background: #17a2b8;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            margin-left: 10px;
+        }
+        
+        .refresh-btn:hover {
+            background: #138496;
+        }
+    </style>
+</head>
+<body>
+    <div class="admin-header">
+        <h1><i class="fas fa-cogs"></i> Admin Panel</h1>
+        <p>TDM Mail Shop - User Management</p>
+    </div>
+    
+    <div class="admin-container">
+        <!-- Stats Cards -->
+        <div class="stats-cards">
+            <div class="stat-card">
+                <h3>Total Users</h3>
+                <div class="stat-number" id="total-users">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Balance</h3>
+                <div class="stat-number" id="total-balance">$0.00</div>
+            </div>
+            <div class="stat-card">
+                <h3>Active Today</h3>
+                <div class="stat-number" id="active-today">0</div>
+            </div>
+            <div class="stat-card">
+                <h3>Total Orders</h3>
+                <div class="stat-number" id="total-orders">0</div>
+            </div>
+        </div>
+        
+        <!-- Messages -->
+        <div id="message-container"></div>
+        
+        <!-- Users Table -->
+        <div class="users-table-container">
+            <div class="table-header">
+                <h2>
+                    <i class="fas fa-users"></i> User Management
+                    <button class="refresh-btn" onclick="loadUsers()">
+                        <i class="fas fa-sync-alt"></i> Refresh
+                    </button>
+                </h2>
+            </div>
+            
+            <div id="users-table-content">
+                <div class="loading">
+                    <i class="fas fa-spinner fa-spin"></i> Loading users...
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let users = [];
+        
+        // Load users on page load
+        document.addEventListener('DOMContentLoaded', function() {
+            loadUsers();
+        });
+        
+        // Load users from API
+        async function loadUsers() {
+            const contentDiv = document.getElementById('users-table-content');
+            contentDiv.innerHTML = '<div class="loading"><i class="fas fa-spinner fa-spin"></i> Loading users...</div>';
+            
+            try {
+                const response = await fetch('/admin/users');
+                const data = await response.json();
+                
+                if (data.success) {
+                    users = data.users;
+                    renderUsersTable();
+                    updateStats();
+                } else {
+                    contentDiv.innerHTML = `<div class="error-message">Error: ${data.error}</div>`;
+                }
+            } catch (error) {
+                contentDiv.innerHTML = `<div class="error-message">Error loading users: ${error.message}</div>`;
+            }
+        }
+        
+        // Render users table
+        function renderUsersTable() {
+            const contentDiv = document.getElementById('users-table-content');
+            
+            if (users.length === 0) {
+                contentDiv.innerHTML = '<div class="no-users">No users found</div>';
+                return;
+            }
+            
+            let html = `
+                <table class="users-table">
+                    <thead>
+                        <tr>
+                            <th>ID</th>
+                            <th>Email</th>
+                            <th>Password Hash</th>
+                            <th>Balance</th>
+                            <th>Orders</th>
+                            <th>Created</th>
+                            <th>Last Active</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+            `;
+            
+            users.forEach(user => {
+                const createdDate = new Date(user.created_at).toLocaleDateString();
+                const lastActive = user.last_order_date ? new Date(user.last_order_date).toLocaleDateString() : 'Never';
+                const balanceClass = user.balance > 0 ? 'balance-positive' : 'balance-zero';
+                
+                html += `
+                    <tr id="user-${user.id}">
+                        <td class="user-id">#${user.id}</td>
+                        <td class="user-email">${user.username}</td>
+                        <td>
+                            <code style="font-size: 0.8rem; background: #f8f9fa; padding: 2px 4px; border-radius: 3px;">
+                                ${user.password_hash.substring(0, 20)}...
+                            </code>
+                        </td>
+                        <td class="balance-cell ${balanceClass}">
+                            <span class="view-mode">$${user.balance.toFixed(2)}</span>
+                            <div class="edit-mode">
+                                <input type="number" step="0.01" class="balance-input" value="${user.balance}" id="balance-input-${user.id}">
+                            </div>
+                        </td>
+                        <td>${user.order_count}</td>
+                        <td>${createdDate}</td>
+                        <td class="last-active">${lastActive}</td>
+                        <td>
+                            <div class="action-buttons">
+                                <div class="view-mode">
+                                    <button class="btn btn-edit" onclick="enableEdit(${user.id})">
+                                        <i class="fas fa-edit"></i> Edit
+                                    </button>
+                                    <button class="btn btn-delete" onclick="deleteUser(${user.id})">
+                                        <i class="fas fa-trash"></i> Delete
+                                    </button>
+                                </div>
+                                <div class="edit-mode">
+                                    <button class="btn btn-save" onclick="saveBalance(${user.id})">
+                                        <i class="fas fa-save"></i> Save
+                                    </button>
+                                    <button class="btn btn-cancel" onclick="cancelEdit(${user.id})">
+                                        <i class="fas fa-times"></i> Cancel
+                                    </button>
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                `;
+            });
+            
+            html += '</tbody></table>';
+            contentDiv.innerHTML = html;
+        }
+        
+        // Update statistics
+        function updateStats() {
+            const totalUsers = users.length;
+            const totalBalance = users.reduce((sum, user) => sum + user.balance, 0);
+            const totalOrders = users.reduce((sum, user) => sum + user.order_count, 0);
+            
+            // Active today (users with orders today)
+            const today = new Date().toDateString();
+            const activeToday = users.filter(user => {
+                if (!user.last_order_date) return false;
+                return new Date(user.last_order_date).toDateString() === today;
+            }).length;
+            
+            document.getElementById('total-users').textContent = totalUsers;
+            document.getElementById('total-balance').textContent = `$${totalBalance.toFixed(2)}`;
+            document.getElementById('active-today').textContent = activeToday;
+            document.getElementById('total-orders').textContent = totalOrders;
+        }
+        
+        // Enable edit mode for a user
+        function enableEdit(userId) {
+            const row = document.getElementById(`user-${userId}`);
+            row.classList.add('edit-mode');
+        }
+        
+        // Cancel edit mode
+        function cancelEdit(userId) {
+            const row = document.getElementById(`user-${userId}`);
+            row.classList.remove('edit-mode');
+        }
+        
+        // Save user balance
+        async function saveBalance(userId) {
+            const input = document.getElementById(`balance-input-${userId}`);
+            const newBalance = parseFloat(input.value);
+            
+            if (isNaN(newBalance)) {
+                showMessage('Please enter a valid balance amount', 'error');
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/balance`, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ balance: newBalance })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage(data.message, 'success');
+                    // Update local user data
+                    const user = users.find(u => u.id === userId);
+                    if (user) {
+                        user.balance = newBalance;
+                    }
+                    cancelEdit(userId);
+                    renderUsersTable();
+                    updateStats();
+                } else {
+                    showMessage('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error saving balance: ' + error.message, 'error');
+            }
+        }
+        
+        // Delete user
+        async function deleteUser(userId) {
+            if (!confirm('Are you sure you want to delete this user? This action cannot be undone.')) {
+                return;
+            }
+            
+            try {
+                const response = await fetch(`/admin/users/${userId}/delete`, {
+                    method: 'POST'
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    showMessage('User deleted successfully', 'success');
+                    loadUsers(); // Reload the user list
+                } else {
+                    showMessage('Error: ' + data.error, 'error');
+                }
+            } catch (error) {
+                showMessage('Error deleting user: ' + error.message, 'error');
+            }
+        }
+        
+        // Show message
+        function showMessage(message, type) {
+            const container = document.getElementById('message-container');
+            const messageDiv = document.createElement('div');
+            messageDiv.className = type === 'success' ? 'success-message' : 'error-message';
+            messageDiv.innerHTML = `
+                <strong>${type === 'success' ? 'Success!' : 'Error!'}</strong> ${message}
+                <button style="float: right; background: none; border: none; cursor: pointer;" onclick="this.parentElement.remove()">
+                    <i class="fas fa-times"></i>
+                </button>
+            `;
+            container.appendChild(messageDiv);
+            
+            // Auto-remove after 5 seconds
+            setTimeout(() => {
+                if (messageDiv.parentElement) {
+                    messageDiv.remove();
+                }
+            }, 5000);
+        }
+    </script>
+</body>
+</html>

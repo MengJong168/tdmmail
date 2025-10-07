@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="home-container">
+
+  <!-- Top Row -->
+  <div class="row">
+    <!-- Top Left -->
+    <div class="card frame1">
+      <h1>Welcome TDM Mail Shop Online</h1>
+      <p class="subtitle">
+        Our service provides reliable Gmail OTP rentals for Facebook registrations.
+      </p>
+
+      <div class="action-buttons">
+        <a href="{{ url_for('login') }}" class="btn primary">Login Again</a>
+        <a href="{{ url_for('register') }}" class="btn success">Register New Account</a>
+        <a href="https://t.me/MENGJONGREAL" target="_blank" class="btn link">Need help? Contact Support</a>
+      </div>
+    </div>
+
+    <!-- Top Right -->
+    <div class="card frame2">
+      <h2>Connect With Us</h2>
+      <p class="telegram-name">@MENGJONGREAL</p>
+      <p>Telegram Support</p>
+      <a href="https://t.me/MENGJONGREAL" target="_blank" class="btn telegram">Join Telegram</a>
+    </div>
+  </div>
+
+  <!-- Bottom Row -->
+  <div class="row">
+    <!-- Bottom Left -->
+    <div class="card frame3">
+      <h2>Immediate Usage Guidelines</h2>
+      <ul>
+        <li>✅ Use the mail immediately after purchase for optimal results.</li>
+        <li>✅ FB for 15 minutes: default <strong>0.08 USD / Mail</strong>.</li>
+        <li>✅ Free OTP codes after the initial purchase.</li>
+      </ul>
+
+      <div class="notice-box">
+        <h3>Important Notice</h3>
+        <p>
+          ⚠️ No refunds under any circumstances to prevent money laundering.  
+          Please deposit only what you need for immediate usage.
+        </p>
+      </div>
+    </div>
+
+    <!-- Bottom Right -->
+    <div class="card frame4">
+      <h2>Service Rates</h2>
+      <div class="rates-box">
+        <div class="rate-item">
+          <p><strong>FB for 15 minutes</strong></p>
+          <p>0.08 USD</p>
+        </div>
+        <div class="rate-item">
+          <p><strong>Second OTPs</strong></p>
+          <p>Free</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}

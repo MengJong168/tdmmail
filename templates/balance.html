@@ -1,0 +1,271 @@
+{% extends "base.html" %}
+{% block content %}
+  <h1>Balance</h1>
+  <p>Your current balance: <strong>${{ "%.2f"|format(balance) }}</strong></p>
+
+  <div class="balance-layout">
+    <div class="topup-section">
+      <h2>Top up</h2>
+      <form id="topup-form">
+        <label>Amount (USD): <input name="amount" step="0.01" type="number" required /></label>
+        <button type="submit">Generate QR</button>
+      </form>
+
+      <div id="qr-area" style="display:none;">
+        <h3>Scan this QR with Bakong app</h3>
+        <img id="qr-image" src="" alt="QR code" />
+        <p id="expiry"></p>
+        <button id="check-payment">Check Payment</button>
+        <p id="payment-status"></p>
+      </div>
+    </div>
+
+    <div class="transaction-section">
+      <h2>Transaction History</h2>
+      <div class="transaction-list">
+        {% if transactions %}
+          {% for transaction in transactions %}
+            <div class="transaction-item {% if transaction.paid %}completed{% else %}pending{% endif %}">
+              <div class="transaction-header">
+                <span class="transaction-id">{{ transaction.transaction_id }}</span>
+                <span class="transaction-amount">${{ "%.2f"|format(transaction.amount) }}</span>
+              </div>
+              <div class="transaction-details">
+                <span class="transaction-status {% if transaction.paid %}status-paid{% else %}status-pending{% endif %}">
+                  {{ "Completed" if transaction.paid else "Pending" }}
+                </span>
+                <span class="transaction-date">{{ transaction.formatted_date }}</span>
+              </div>
+              {% if transaction.description %}
+              <div class="transaction-description">
+                {{ transaction.description }}
+              </div>
+              {% endif %}
+            </div>
+          {% endfor %}
+        {% else %}
+          <p class="no-transactions">No transactions yet.</p>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.getElementById('topup-form').addEventListener('submit', async function(e){
+  e.preventDefault();
+  const form = e.target;
+  const data = new FormData(form);
+
+  try {
+    const json = await apiFetch('/generate_qr', { method: 'POST', body: data });
+    
+    if(json.success){
+      document.getElementById('qr-area').style.display = 'block';
+      document.getElementById('qr-image').src = 'data:image/png;base64,' + json.qr_image;
+      document.getElementById('expiry').innerText = 'Expiry: ' + new Date(json.expiry).toLocaleString();
+      window._trx = json.transaction_id;
+      document.getElementById('payment-status').innerText = 'Waiting for payment...';
+    } else {
+      alert(json.error || 'Failed to generate QR');
+    }
+  } catch (error) {
+    console.error('Error generating QR:', error);
+    // Error handled by global handler
+  }
+});
+
+document.getElementById('check-payment').addEventListener('click', async ()=>{
+  const btn = document.getElementById('check-payment');
+  if(!window._trx) return alert('No transaction in progress');
+
+  // Disable button for 5 seconds
+  btn.disabled = true;
+  setTimeout(()=> btn.disabled = false, 5000);
+
+  try {
+    const fd = new FormData();
+    fd.append('transaction_id', window._trx);
+    const json = await apiFetch('/check_payment', { method: 'POST', body: fd });
+    
+    if(json.status === 'PAID'){
+      document.getElementById('payment-status').innerText = json.message;
+      setTimeout(()=> location.reload(), 800);
+    } else {
+      document.getElementById('payment-status').innerText = json.message || JSON.stringify(json);
+    }
+  } catch (error) {
+    console.error('Error checking payment:', error);
+    // Error handled by global handler
+  }
+});
+</script>
+
+<!-- Keep the existing CSS styles, they remain the same -->
+<style>
+.balance-layout {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 30px;
+  margin-top: 20px;
+}
+
+.topup-section, .transaction-section {
+  background: #f8f9fa;
+  padding: 20px;
+  border-radius: 8px;
+  border: 1px solid #e9ecef;
+}
+
+.topup-section h2, .transaction-section h2 {
+  margin-top: 0;
+  color: #333;
+  border-bottom: 2px solid #007bff;
+  padding-bottom: 10px;
+}
+
+#topup-form {
+  display: flex;
+  flex-direction: column;
+  gap: 15px;
+}
+
+#topup-form label {
+  display: flex;
+  flex-direction: column;
+  font-weight: 500;
+}
+
+#topup-form input {
+  padding: 10px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+  font-size: 14px;
+  margin-top: 5px;
+}
+
+#topup-form button, #check-payment {
+  background: #007bff;
+  color: white;
+  border: none;
+  padding: 10px 15px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+}
+
+#topup-form button:hover, #check-payment:hover {
+  background: #0056b3;
+}
+
+#qr-area {
+  margin-top: 20px;
+  text-align: center;
+}
+
+#qr-image {
+  max-width: 200px;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+
+#expiry {
+  color: #666;
+  font-size: 14px;
+  margin: 10px 0;
+}
+
+#payment-status {
+  margin-top: 10px;
+  font-weight: 500;
+}
+
+.transaction-list {
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.transaction-item {
+  background: white;
+  padding: 15px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border-left: 4px solid #007bff;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+}
+
+.transaction-item.completed {
+  border-left-color: #28a745;
+}
+
+.transaction-item.pending {
+  border-left-color: #ffc107;
+}
+
+.transaction-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.transaction-id {
+  font-weight: 600;
+  color: #333;
+  font-size: 14px;
+}
+
+.transaction-amount {
+  font-weight: 700;
+  color: #007bff;
+  font-size: 16px;
+}
+
+.transaction-details {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 12px;
+  color: #666;
+}
+
+.transaction-status {
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-weight: 500;
+}
+
+.status-paid {
+  background: #d4edda;
+  color: #155724;
+}
+
+.status-pending {
+  background: #fff3cd;
+  color: #856404;
+}
+
+.transaction-description {
+  margin-top: 8px;
+  font-size: 12px;
+  color: #666;
+  font-style: italic;
+}
+
+.no-transactions {
+  text-align: center;
+  color: #666;
+  font-style: italic;
+  padding: 40px 0;
+}
+
+@media (max-width: 768px) {
+  .balance-layout {
+    grid-template-columns: 1fr;
+    gap: 20px;
+  }
+}
+</style>
+{% endblock %}
