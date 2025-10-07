@@ -1,0 +1,104 @@
+body { font-family: Arial, sans-serif; margin:0; padding:0; background:#f7f7f8; color:#222; }
+.navbar { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; background:#1b6; color:#fff; }
+.navbar a { margin-right:12px; color:#fff; text-decoration:none; font-weight:600; }
+.brand { font-weight:800; margin-right:16px; }
+.container { padding:20px; max-width:1000px; margin:20px auto; background:#fff; border-radius:6px; box-shadow:0 2px 6px rgba(0,0,0,0.05); }
+.orders-table { width:100%; border-collapse:collapse; }
+.orders-table th, .orders-table td { padding:8px 10px; border-bottom:1px solid #eee; text-align:left; }
+.footer { text-align:center; padding:14px; color:#777; font-size:14px; margin-top:16px; }
+.quick-actions form input { margin-right:8px; padding:6px; }
+.welcome-box { text-align: center; padding: 60px 20px;}
+.welcome-box h1 {font-size: 2em;margin-bottom: 10px;color: #1b6;}
+.welcome-box p {font-size: 1.1em;color: #333;margin-bottom: 30px;}
+.action-buttons {display: flex;flex-direction: column;align-items: center;gap: 12px;}
+.btn {display: inline-block;padding: 10px 20px;border-radius: 5px;text-decoration: none;font-weight: bold;transition: background 0.3s;}
+.btn:hover { opacity: 0.9; }
+.btn.secondary {background: #555;color: #fff;}
+.btn {background: #1b6;color: #fff;}
+.btn.link {background: none;color: #1b6;text-decoration: underline;}
+.auth-container {display: flex;justify-content: center;align-items: center;height: 80vh;background: #f7f7f8;}
+.auth-card {background: #fff;padding: 40px 50px;border-radius: 10px;box-shadow: 0 4px 10px rgba(0,0,0,0.08);width: 100%;max-width: 400px;text-align: left;}
+.auth-card h1 {text-align: center;color: #1b6;margin-bottom: 8px;}
+.auth-card .subtitle {text-align: center;color: #666;margin-bottom: 25px;}
+.auth-form label {display: block;font-weight: 600;margin-bottom: 6px;color: #333;}
+.auth-form input[type="email"],
+.auth-form input[type="password"] {width: 100%;padding: 10px;margin-bottom: 16px;border: 1px solid #ccc;border-radius: 6px;font-size: 15px;}
+.form-options {display: flex;justify-content: space-between;align-items: center;margin-bottom: 16px;font-size: 14px;}
+.form-options a {color: #1b6;text-decoration: none;}
+.form-options a:hover {text-decoration: underline;}
+.btn {display: block;width: 100%;background: #1b6;color: white;border: none;padding: 10px;border-radius: 6px;font-size: 16px;font-weight: bold;cursor: pointer;transition: background 0.3s;}
+.btn:hover { opacity: 0.9; }
+.switch-text {text-align: center;margin-top: 18px;font-size: 14px;}
+.switch-text a {color: #1b6;text-decoration: none;font-weight: 600;}
+.switch-text a:hover {text-decoration: underline;}
+.error-message {background-color: #fee;color: #c33;padding: 10px;border-radius: 4px;border: 1px solid #fcc;margin-bottom: 15px;}
+.home-container {
+  max-width: 1100px;
+  margin: 0 auto;
+  padding: 20px;
+}
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  justify-content: space-between;
+}
+
+.card {
+  flex: 1;
+  min-width: 480px;
+  background: #fff;
+  border-radius: 10px;
+  padding: 24px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+}
+
+.card h1, .card h2 {
+  color: #1b6;
+  margin-bottom: 10px;
+}
+
+.card ul {
+  padding-left: 20px;
+  margin: 10px 0;
+  color: #333;
+}
+
+.notice-box {
+  background: #fee;
+  color: #c33;
+  border: 1px solid #fcc;
+  padding: 14px;
+  border-radius: 8px;
+  margin-top: 20px;
+}
+
+.rates-box {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.rate-item {
+  display: flex;
+  justify-content: space-between;
+  padding: 8px 0;
+  border-bottom: 1px solid #eee;
+}
+
+.telegram-name {
+  font-weight: bold;
+  color: #229ED9;
+}
+
+.btn.telegram {
+  background: #229ED9;
+  color: #fff;
+}
+
+@media (max-width: 1000px) {
+  .row {
+    flex-direction: column;
+  }
+}
