@@ -1,0 +1,4 @@
+Flask>=2.0
+qrcode[pil]
+# If you use the real bakong_khqr library, add it here:
+# bakong_khqr
