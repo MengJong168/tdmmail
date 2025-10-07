@@ -1,1 +1,191 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>TDMMailShop Online</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+  <link rel="icon" href="https://cdn-icons-png.flaticon.com/512/281/281769.png" type="image/png">
+  <!-- Font Awesome for icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.6.0/css/all.min.css">
 
+  <style>
+    /* --- Navbar Styling --- */
+    .navbar {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: #f4f8ff;
+      padding: 10px 30px;
+      border-bottom: 2px solid #c6d6ff;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+    }
+
+    .nav-left {
+      display: flex;
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 5px;
+    }
+
+    .nav-left .brand-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .nav-left img {
+      width: 34px;
+      height: 34px;
+      border-radius: 6px;
+    }
+
+    .brand {
+      font-weight: 700;
+      font-size: 20px;
+      color: #1d4ed8;
+      text-decoration: none;
+    }
+
+    .brand:hover {
+      color: #2563eb;
+    }
+
+    .user {
+      font-size: 15px;
+      color: #555;
+    }
+
+    /* Right navigation links with background bar */
+    .nav-right {
+      display: flex;
+      align-items: center;
+    }
+
+    .nav-links-bg {
+      display: flex;
+      gap: 15px;
+      background-color: #c6d6ff; /* blue background */
+      padding: 6px 15px;
+      border-radius: 8px;
+      align-items: center;
+    }
+
+    .nav-links-bg a {
+      color: #2563eb;
+      font-weight: 500;
+      text-decoration: none;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: 6px;
+      transition: background 0.2s, color 0.2s;
+    }
+
+    .nav-links-bg a:hover {
+      background-color: #2563eb;
+      color: #fff;
+    }
+
+    .nav-links-bg i {
+      font-size: 16px;
+    }
+
+    /* API Error Message */
+    .api-error {
+      background: #f8d7da;
+      color: #721c24;
+      padding: 12px;
+      border-radius: 4px;
+      margin: 10px 0;
+      border: 1px solid #f5c6cb;
+      display: none;
+    }
+
+    /* --- Footer --- */
+    .footer {
+      text-align: center;
+      padding: 15px;
+      font-size: 14px;
+      color: #777;
+      border-top: 1px solid #ddd;
+      margin-top: 40px;
+    }
+  </style>
+</head>
+<body>
+  <nav class="navbar">
+    <div class="nav-left">
+      <div class="brand-row">
+        <img src="https://cdn-icons-png.flaticon.com/512/281/281769.png" alt="MailShop Logo">
+        <a class="brand" href="{{ url_for('index') }}">TDM Mail Shop Online</a>
+      </div>
+      {% if session.get('user') %}
+        <span class="user">Hi, {{ session.get('user') }}</span>
+      {% endif %}
+    </div>
+
+    <div class="nav-right">
+      <div class="nav-links-bg">
+        {% if session.get('user') %}
+          <a href="{{ url_for('index') }}"><i class="fa-solid fa-house"></i> Home</a>
+          <a href="{{ url_for('orders_page') }}"><i class="fa-solid fa-box"></i> Orders</a>
+          <a href="{{ url_for('balance_page') }}"><i class="fa-solid fa-wallet"></i> Balance</a>
+          <a href="{{ url_for('logout') }}"><i class="fa-solid fa-right-from-bracket"></i> Logout</a>
+        {% else %}
+          <a href="{{ url_for('login') }}"><i class="fa-solid fa-right-to-bracket"></i> Login</a>
+        {% endif %}
+      </div>
+    </div>
+  </nav>
+
+  <!-- API Error Message Container -->
+  <div id="api-error" class="api-error">
+    <strong>API Connection Error:</strong> <span id="api-error-message"></span>
+  </div>
+
+  <main class="container">
+    {% block content %}{% endblock %}
+  </main>
+
+  <footer class="footer">
+    tdmmailshoponline.store &copy; {{ now().year if now is defined else "" }}
+  </footer>
+
+  <script>
+    // Global API error handler
+    function handleApiError(error) {
+      console.error('API Error:', error);
+      const errorDiv = document.getElementById('api-error');
+      const errorMessage = document.getElementById('api-error-message');
+      
+      if (errorDiv && errorMessage) {
+        errorMessage.textContent = error.message || 'Failed to connect to server. Please try again.';
+        errorDiv.style.display = 'block';
+        
+        // Hide error after 5 seconds
+        setTimeout(() => {
+          errorDiv.style.display = 'none';
+        }, 5000);
+      }
+    }
+
+    // Enhanced fetch with error handling
+    async function apiFetch(url, options = {}) {
+      try {
+        const response = await fetch(url, options);
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        return await response.json();
+      } catch (error) {
+        handleApiError(error);
+        throw error;
+      }
+    }
+  </script>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>
