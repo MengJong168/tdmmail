@@ -11,7 +11,7 @@ app = Flask(__name__)
 app.secret_key = 'replace_with_a_random_secret_key'  # change in production
 
 # API configuration - point to your create_database.py server
-API_BASE_URL = 'http://localhost:5003'  # Change this if your server runs on different port
+API_BASE_URL = 'https://mengtopup.shop'  # Change this if your server runs on different port
 
 # Admin credentials
 ADMIN_PASSWORD = "1516Coolb"
@@ -803,4 +803,5 @@ except Exception as e:
     khqr = KHQRStub("stub-token")
 
 if __name__ == '__main__':
+
     app.run(debug=True, host='0.0.0.0', port=5000)
